@@ -77,6 +77,26 @@ class InvoicesController {
       res.status(404).json({ message: "Invoice not found" });
     }
   }
+
+    // delete invoice
+    static deleteInvoice(req, res) {
+        const { id } = req.params;
+        const changes = InvoiceModel.deleteInvoice(id);
+        if (changes > 0) {
+            const syncTime = new Date().toISOString();
+            SyncModel.addSync(syncTime);
+            // Auto broadcast sync to all connected clients
+            syncWebSocket.broadcastSync({
+                last_sync: syncTime,
+                action: "invoice_deleted",
+                data: { id },
+                message: "Invoice deleted"
+            });
+            res.status(200).json({ message: "Invoice deleted successfully" });
+        } else {
+            res.status(404).json({ message: "Invoice not found" });
+        }
+    }
 }
 
 module.exports = InvoicesController;

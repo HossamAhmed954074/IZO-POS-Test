@@ -9,5 +9,8 @@ router.get("/", InvoicesController.getAllInvoices);
 router.get("/:id", InvoicesController.getInvoiceById);
 // update invoice
 router.put("/:id", InvoicesController.updateInvoice);
+// delete invoice
+router.delete("/:id", InvoicesController.deleteInvoice);
+
 module.exports = router;
 
