@@ -59,6 +59,15 @@ class InvoiceModel {
         const info = stmt.run(customer_name, total_amount, updated_at, id);
         return info.changes;
     }
+    // Delete invoice
+    static deleteInvoice(id) {
+        const query = `
+            DELETE FROM invoices WHERE id = ?
+        `;
+        const stmt = db.prepare(query);
+        const info = stmt.run(id);
+        return info.changes;
+    }
 }
 
 module.exports = InvoiceModel;
