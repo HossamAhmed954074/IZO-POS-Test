@@ -1,5 +1,6 @@
 const InvoiceModel = require("../models/invoiceModel");
 const SyncModel = require("../models/syncModel");
+const syncWebSocket = require("../websocket/syncWebSocket");
 
 class InvoicesController {
   // create invoice
@@ -16,7 +17,18 @@ class InvoicesController {
       created_at,
       updated_at
     );
-    SyncModel.addSync(new Date().toISOString());
+  
+    const syncTime = new Date().toISOString();
+    SyncModel.addSync(syncTime);
+    
+    // Auto broadcast sync to all connected clients
+    syncWebSocket.broadcastSync({
+      last_sync: syncTime,
+      action: "invoice_created",
+      data: { customer_name, total_amount },
+      message: "New invoice created"
+    });
+
     res.status(201).json({ message: "Invoice created successfully" });
   }
   // get all invoices
@@ -49,7 +61,17 @@ class InvoicesController {
       updated_at
     );
     if (changes > 0) {
-      SyncModel.addSync(new Date().toISOString());
+      const syncTime = new Date().toISOString();
+      SyncModel.addSync(syncTime);
+      
+      // Auto broadcast sync to all connected clients
+      syncWebSocket.broadcastSync({
+        last_sync: syncTime,
+        action: "invoice_updated",
+        data: { id, customer_name, total_amount },
+        message: "Invoice updated"
+      });
+
       res.status(200).json({ message: "Invoice updated successfully" });
     } else {
       res.status(404).json({ message: "Invoice not found" });
