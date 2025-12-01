@@ -104,13 +104,27 @@
         const pingBtn = document.getElementById('pingBtn');
         const triggerSyncBtn = document.getElementById('triggerSyncBtn');
 
+        // Get WebSocket URL based on current location
+        function getWebSocketUrl() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            return `${protocol}//${host}/sync`;
+        }
+
+        // Get API URL based on current location
+        function getApiUrl() {
+            return `${window.location.protocol}//${window.location.host}/api/sync/trigger`;
+        }
+
         function connect() {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 addMessage('تحذير: الاتصال موجود بالفعل');
                 return;
             }
 
-            ws = new WebSocket('ws://localhost:3000/sync');
+            const wsUrl = getWebSocketUrl();
+            addMessage(`محاولة الاتصال بـ: ${wsUrl}`);
+            ws = new WebSocket(wsUrl);
 
             ws.onopen = () => {
                 statusDiv.textContent = 'متصل ✓';
@@ -169,7 +183,8 @@
 
         async function triggerSync() {
             try {
-                const response = await fetch('http://localhost:3000/api/sync/trigger', {
+                const apiUrl = getApiUrl();
+                const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
