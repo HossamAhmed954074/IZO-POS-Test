@@ -12,5 +12,7 @@ router.put("/:id", InvoicesController.updateInvoice);
 // delete invoice
 router.delete("/:id", InvoicesController.deleteInvoice);
 
-module.exports = router;
+// delete all invoices (for testing purposes)
+router.delete("/", InvoicesController.deleteAllInvoices);
 
+module.exports = router;

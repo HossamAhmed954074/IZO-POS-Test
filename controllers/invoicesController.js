@@ -97,6 +97,21 @@ class InvoicesController {
       res.status(404).json({ message: "Invoice not found" });
     }
   }
+
+  // delete all invoices (for testing purposes)
+  static deleteAllInvoices(req, res) {
+    InvoiceModel.deleteAllInvoices();
+    const syncTime = new Date().toISOString();
+    SyncModel.addSync(syncTime);
+    // Auto broadcast sync to all connected clients
+    syncWebSocket.broadcastSync({
+      last_sync: syncTime,
+      action: "all_invoices_deleted",
+      data: {},
+      message: "All invoices deleted",
+    });
+    res.status(200).json({ message: "All invoices deleted successfully" });
+  }
 }
 
 module.exports = InvoicesController;

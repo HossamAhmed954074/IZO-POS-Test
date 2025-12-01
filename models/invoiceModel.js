@@ -68,6 +68,14 @@ class InvoiceModel {
         const info = stmt.run(id);
         return info.changes;
     }
+
+    // delete all invoices (for testing purposes)
+    static deleteAllInvoices() {
+        const query = `
+            DELETE FROM invoices
+        `;
+        db.prepare(query).run();
+    }
 }
 
 module.exports = InvoiceModel;
