@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sync WebSocket Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .messages {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .message {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-left: 4px solid #007bff;
+            border-radius: 3px;
+        }
+        .message.sync {
+            border-left-color: #28a745;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .timestamp {
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 مراقبة المزامنة في الوقت الفعلي</h1>
+        
+        <div id="status" class="status disconnected">غير متصل</div>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <button id="connectBtn" onclick="connect()">اتصال</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>قطع الاتصال</button>
+            <button id="pingBtn" onclick="sendPing()" disabled>إرسال Ping</button>
+            <button id="triggerSyncBtn" onclick="triggerSync()" disabled>تشغيل المزامنة</button>
+        </div>
+        
+        <h3>الرسائل المستلمة:</h3>
+        <div id="messages" class="messages"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const pingBtn = document.getElementById('pingBtn');
+        const triggerSyncBtn = document.getElementById('triggerSyncBtn');
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                addMessage('تحذير: الاتصال موجود بالفعل');
+                return;
+            }
+
+            ws = new WebSocket('ws://localhost:3000/sync');
+
+            ws.onopen = () => {
+                statusDiv.textContent = 'متصل ✓';
+                statusDiv.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                pingBtn.disabled = false;
+                triggerSyncBtn.disabled = false;
+                addMessage('تم الاتصال بخادم المزامنة');
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    const isSyncMessage = data.type === 'sync:update';
+                    addMessage(
+                        `النوع: ${data.type}<br>` +
+                        `البيانات: ${JSON.stringify(data.data || data.message, null, 2)}<br>` +
+                        `الوقت: ${new Date(data.timestamp).toLocaleString('ar-EG')}`,
+                        isSyncMessage
+                    );
+                } catch (error) {
+                    addMessage('رسالة: ' + event.data);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                addMessage('خطأ في الاتصال');
+            };
+
+            ws.onclose = () => {
+                statusDiv.textContent = 'غير متصل ✗';
+                statusDiv.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                pingBtn.disabled = true;
+                triggerSyncBtn.disabled = true;
+                addMessage('تم قطع الاتصال');
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function sendPing() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'ping' }));
+                addMessage('تم إرسال Ping');
+            }
+        }
+
+        async function triggerSync() {
+            try {
+                const response = await fetch('http://localhost:3000/api/sync/trigger', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const result = await response.json();
+                addMessage(`تم تشغيل المزامنة: ${JSON.stringify(result, null, 2)}`);
+            } catch (error) {
+                addMessage('خطأ في تشغيل المزامنة: ' + error.message);
+            }
+        }
+
+        function addMessage(message, isSync = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message' + (isSync ? ' sync' : '');
+            messageDiv.innerHTML = message + 
+                '<div class="timestamp">' + new Date().toLocaleTimeString('ar-EG') + '</div>';
+            messagesDiv.insertBefore(messageDiv, messagesDiv.firstChild);
+            
+            // Keep only last 50 messages
+            while (messagesDiv.children.length > 50) {
+                messagesDiv.removeChild(messagesDiv.lastChild);
+            }
+        }
+
+        // Auto-connect on page load
+        window.onload = () => {
+            connect();
+        };
+    </script>
+</body>
+</html>
